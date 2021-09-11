@@ -1,52 +1,43 @@
 % runs a simulation of the CNN , with the given Input Matrix of each cell 
-function [VxMatHist, VxMat, VyMatHist, VyMat] = simulate(VxMatInt,VuMat,T,C,R_x,I,dt,MatA,MatB,Vmax,b_types,b_values)
-    [m,n]=size(VxMatInt);
-    VxMatHist=zeros(m,n,numel(T));
-    VyMatHist=zeros(m,n,numel(T));
-    
-    VxMat = VxMatInt;
-    VyMat = 0.5 * ( abs(VxMat + Vmax) - abs(VxMat -Vmax)); 
-    
+
+% (VxMatInt: the inital Vx voltage for all cells ,VuMat the initail vilatge for all cells 
+%T: simulation time ,C : capacitor for every cell,R_x : resistor for every cell ,I : bias current in every cell ,
+%dt is the time intervals , MatA is matrix A,MatB is Matrix B.
+function [VxMatHist, VxStable, VyMatHist, VyStable] = simulate(V_xMatInt,V_uMat,m,n,T,C,R_x,I,dt,MatA,MatB)
+    V_yMat = zeros(m,n);
+    V_yMat = computeVy(V_yMat,V_xMatInt,m,n);
+   % V_yMat = V_xMatInt; % should be computeVy  in regular 
+    V_xMatNew = V_xMatInt;
+    V_xMatHist = V_xMatInt;
+    V_yMatHist = V_yMat;
     count = 1;
     t = 0;
     while t <= T
-        % boundary conditions
-        if b_types(1)==0
-                VxMat(1,:)=b_values(1);
-        else
-                VxMat(1,:)=VxMat(2,:)-b_values(1);
-        end
-        if b_types(2)==0
-                VxMat(end,:)=b_values(2);
-        else
-                VxMat(end,:)=VxMat(end-1,:)+b_values(2);
-        end
-        if b_types(3)==0
-                VxMat(:,1)=b_values(3);
-        else
-                VxMat(:,1)=VxMat(:,2)-b_values(3);
-        end
-        if b_types(4)==0
-                VxMat(:,end)=b_values(4);
-        else
-                VxMat(:,end)=VxMat(:,end-1)+b_values(4);
-        end
-        
-        % within the matrix (non-boundary elements)
-        for r = 2:m-1
-            for c = 2:n-1
-                SumA = sum(MatA.*VyMat(r-1:r+1,c-1:c+1),'all');
-                SumB = sum(MatB.*VuMat(r-1:r+1,c-1:c+1),'all');
-                dV_x = (-(1/R_x)*VxMat(r,c) + SumA + SumB + I)/C;
-                VxMat(r,c) = VxMat(r,c) + dV_x * dt;
+        for r = 1:m
+            for c = 1:n
+             
+          
+                
+                V_xMatNew(r,c) = V_xMatNew(r,c) + computeVx(C,R_x,I,dt,MatA,MatB,V_xMatNew(r,c),V_yMat,V_uMat,m,n,r,c);
+          
+                
+                
             end
         end
+    V_xMatHist(:,:,count) = V_xMatNew;
     
-    VyMat = 0.5 * ( abs(VxMat + Vmax) - abs(VxMat -Vmax)); 
+    % Matrix-wise operation would be fine, do not need to loop in the matrix
+     V_yMat = V_xMatNew;
+   % V_yMat = 0.5 * ( abs(V_xMatNew + Vmax) - abs(V_xMatNew -Vmax)); //  don't need Vy 
     
-    VxMatHist(:,:,count) = VxMat;
-    VyMatHist(:,:,count) = VyMat;
+    V_yMat = computeVy(V_yMat,V_xMatNew,m,n);
+    V_yMatHist(:,:,count) = V_yMat;
     count = count + 1;
     t = t + dt;
     end
+
+    VxMatHist = V_xMatHist;
+    VxStable = V_xMatNew;
+    VyMatHist = V_yMatHist;
+    VyStable = V_yMat;
 end
